@@ -1,8 +1,17 @@
 from flask import Flask, render_template,request,redirect, url_for
 import sqlite3
 from sqlite3 import Error
+from wtforms import Form, StringField, validators
 
-connection = None
+#SQL for creating recipe table
+create_recipe_table = """
+    CREATE TABLE IF NOT EXISTS recipes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    image TEXT NOT NULL,
+    link  TEXT NOT NULL
+);
+"""
 
 #path parameter is the path to the database to be created. 
 def create_connection(path):
@@ -15,18 +24,21 @@ def create_connection(path):
 
     return connection
 
-def execute_query(connection,query = None,insert_values = None):
+def execute_query(connection,query = None,insert_values = None, del_id = None):
     cursor = connection.cursor()
-    try:
-        if query:
+    try: 
+        if insert_values:
+          cursor.execute(query, (insert_values[0],insert_values[1],insert_values[2]))
+          connection.commit()
+          print("Recipe added to DB successfully!!")
+        elif del_id:
+          cursor.execute(query, del_id)
+          connection.commit()
+          print("Recipe deleted from DB successfully!!")  
+        else:
           cursor.execute(query)
           connection.commit()
           print("Query executed successfully!!")
-        
-        if insert_values:
-          cursor.execute("INSERT INTO recipes (title, image, link) VALUES (?,?,?)", (insert_values[0],insert_values[1],insert_values[2]))
-          connection.commit()
-          print("Recipe added to DB successfully!!")
           
     except Error as e:
         print(f"The error '{e}' occurred")
@@ -40,34 +52,6 @@ def execute_read_query(connection, query):
         return result
     except Error as e:
         print(f"The error '{e}' occurred")
-
-create_recipe_table = """
-    CREATE TABLE IF NOT EXISTS recipes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    image TEXT NOT NULL,
-    link  TEXT NOT NULL
-);
-"""
-# recipes = [
-#         {
-#             "title": "BBQ Sweet and Sour Chicken Wings",
-#             "image": "https://image.freepik.com/free-photo/chicken-wings-barbecue-sweetly-sour-sauce-picnic-summer-menu-tasty-food-top-view-flat-lay_2829-6471.jpg",
-#             "link": "https://cookpad.com/us/recipes/347447-easy-sweet-sour-bbq-chicken"
-#         },
-        
-#         {
-#             "title": "Chicken dum biryani",
-#             "image": "https://img-global.cpcdn.com/recipes/7a280653f37e857e/680x482cq70/chicken-dum-biryani-recipe-main-photo.webp",
-#             "link": "https://cookpad.com/us/recipes/14350263-chicken-dum-biryani"
-#         },
-        
-#         {
-#             "title": "Chicken pasta",
-#             "image": "https://image.freepik.com/free-photo/penne-pasta-tomato-sauce-with-chicken-tomatoes-wooden-table_2829-19739.jpg",
-#             "link": "https://cookpad.com/us/recipes/15210882-garlic-chicken-penne-pasta-with-spicy-marinara?ref=search&search_term=chicken%20pasta"
-#         }
-#     ]
 
 app = Flask(__name__)
 
@@ -83,14 +67,39 @@ def home():
 def about():
     return render_template("about.html") 
 
-@app.route('/recipe/', methods=['POST'])
+@app.route('/recipe/', methods=['POST','GET'])
 def create_recipe():
-    form = request.form
-
-    recipe = (form['title'],form['image'],form['link'])
     connection = create_connection("recipes.db")
-    execute_query(connection,insert_values=recipe)
-    return form
+    form = CreateRecipeForm() #instantiate the form to send when the request.method != POST
+    if request.method == 'POST':
+        form = CreateRecipeForm(request.form)
+        
+        if form.validate():
+            title = form.title.data #access the form data
+            image = form.image.data
+            link = form.link.data
+            insert_recipe = '''INSERT INTO recipes (title, image, link) VALUES (?,?,?)'''
+            form_data = (title, image, link)
+            execute_query(connection, insert_recipe, form_data)
+            return redirect(url_for('home'))
+        
+    return render_template('create-recipe.html',form=form)
+
+@app.route('/recipe/delete/<id>',methods=['POST'])
+def delete_recipe(id):
+    
+    connection = create_connection("recipes.db")
+    
+    delete_recipe = '''DELETE FROM recipes WHERE id = ?'''
+    
+    execute_query(connection, delete_recipe, del_id = id)
+    
+    return redirect(url_for('home')) 
+
+class CreateRecipeForm(Form):
+    title = StringField('Recipe Title', [validators.Length(min=4, max=50)])
+    image = StringField('Image Address', [validators.Length(min=10)])
+    link = StringField('Recipe Link', [validators.Length(min=10)])
   
 if __name__ == '__main__':
   connection = create_connection("recipes.db")
