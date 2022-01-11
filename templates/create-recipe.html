@@ -1,0 +1,16 @@
+{% extends "layout.html" %} 
+{% set active_page = "create-recipe" %}
+{% block title %}Add Recipe{% endblock %} 
+{% from "_formhelpers.html" import render_field %}
+{% block content %}
+<div class="container w-50 mt-3">
+    <form method="post">
+      <dl>
+        {{ render_field(form.title, class="form-control") }}
+        {{ render_field(form.image, class="form-control") }}
+        {{ render_field(form.link, class="form-control") }}
+      </dl>
+      <button class="btn btn-primary" type=submit>Add New Recipe</button>
+    </form>
+  </div>
+{% endblock %}
