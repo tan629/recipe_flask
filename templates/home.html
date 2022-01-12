@@ -26,7 +26,9 @@
           </p>
         </div>
         <div class="card-footer d-flex justify-content-between">
-          <a href="#" class="btn btn-primary">Edit</a>
+          <form action="{{url_for('edit_recipe',id=recipe[0])}}" method="get">
+            <button type="submit" class="btn btn-primary">Edit</button>
+          </form>  
           <form action="{{url_for('delete_recipe',id=recipe[0])}}" method="post">
             <button type="submit" class="btn btn-danger">Delete</button>
           </form>       

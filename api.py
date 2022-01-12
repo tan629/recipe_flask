@@ -24,30 +24,29 @@ def create_connection(path):
 
     return connection
 
-def execute_query(connection,query = None,insert_values = None, del_id = None):
+def execute_query(connection,query = None,params = None):
     cursor = connection.cursor()
     try: 
-        if insert_values:
-          cursor.execute(query, (insert_values[0],insert_values[1],insert_values[2]))
-          connection.commit()
-          print("Recipe added to DB successfully!!")
-        elif del_id:
-          cursor.execute(query, del_id)
-          connection.commit()
-          print("Recipe deleted from DB successfully!!")  
+        if params:
+          cursor.execute(query, params)        
         else:
           cursor.execute(query)
-          connection.commit()
-          print("Query executed successfully!!")
           
     except Error as e:
         print(f"The error '{e}' occurred")
 
-def execute_read_query(connection, query):
+    connection.commit()
+    print("Query executed in DB successfully!!")
+          
+def execute_read_query(connection, query, id=None):
     cursor = connection.cursor()
     result = None
     try:
-        cursor.execute(query)
+        if id:
+            cursor.execute(query,id)
+        else:
+            cursor.execute(query)
+            
         result = cursor.fetchall()
         return result
     except Error as e:
@@ -60,7 +59,7 @@ def home():
     connection = create_connection("recipes.db")
     query = "SELECT * FROM recipes"
     recipes = execute_read_query(connection,query)
-
+    
     return render_template("home.html",recipes=recipes) 
   
 @app.route('/about/')
@@ -90,11 +89,46 @@ def delete_recipe(id):
     
     connection = create_connection("recipes.db")
     
-    delete_recipe = '''DELETE FROM recipes WHERE id = ?'''
+    delete_recipe_sql = '''DELETE FROM recipes WHERE id = ?'''
     
-    execute_query(connection, delete_recipe, del_id = id)
+    id = (id,)
+    execute_query(connection, delete_recipe_sql, id)
     
     return redirect(url_for('home')) 
+
+@app.route('/recipe/<id>', methods=['POST','GET'])
+def edit_recipe(id):
+    
+    connection = create_connection("recipes.db")
+   
+    if request.method == 'POST':
+        form = CreateRecipeForm(request.form)
+        
+        if form.validate():
+            title = form.title.data #access the form data
+            image = form.image.data
+            link = form.link.data
+            update_recipe_sql = '''UPDATE recipes SET title=?, image=?, link=? WHERE id=?'''
+            form_data = (title, image, link,id)
+            execute_query(connection, update_recipe_sql, form_data)
+            return redirect(url_for('home'))
+    
+    id = (id,)
+    query = "SELECT * FROM recipes WHERE id=?"
+    
+    print("ID = ",id)
+    print("QUERY = ", query)
+    recipe = execute_read_query(connection,query,id=id)
+                
+    print("RECIPE = ",recipe)
+    form = CreateRecipeForm(request.form) #instantiate the form to send when the request.method != POST
+    
+    #Populate form with the data of the recipe selected to be edited
+    form.title.data = recipe[0][1]
+    form.image.data = recipe[0][2]
+    form.link.data = recipe[0][3]
+    
+    return render_template('edit-recipe.html',form=form,id=id)
 
 class CreateRecipeForm(Form):
     title = StringField('Recipe Title', [validators.Length(min=4, max=50)])
