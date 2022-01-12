@@ -116,11 +116,8 @@ def edit_recipe(id):
     id = (id,)
     query = "SELECT * FROM recipes WHERE id=?"
     
-    print("ID = ",id)
-    print("QUERY = ", query)
     recipe = execute_read_query(connection,query,id=id)
                 
-    print("RECIPE = ",recipe)
     form = CreateRecipeForm(request.form) #instantiate the form to send when the request.method != POST
     
     #Populate form with the data of the recipe selected to be edited
