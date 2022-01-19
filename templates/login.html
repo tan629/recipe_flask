@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% set active_page = "login" %}
+{% block title %}Login Page{% endblock %} 
+{% from "_formhelpers.html" import render_field %}
+{% block content %}
+
+<div class="container w-50 mt-3">
+    <h4>Please log in to view your recipes</h4>
+    <br/>
+    <form method="post">
+      <dl>
+        {{ render_field(form.username, class="form-control") }}
+        {{ render_field(form.password, class="form-control") }}
+      </dl>
+      <button class="btn btn-primary" type=submit>Login</button>
+
+      {% if msg %}
+
+        {% if registered %}
+          <h3 style="color:blue">{{msg}}</h3> 
+        {%else%}
+          <h3 style="color:red">{{msg}}</h3> 
+        {% endif %}
+      {% endif %}
+    </form>
+  </div>
+{% endblock %}

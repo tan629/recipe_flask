@@ -1,0 +1,17 @@
+{% extends "layout.html" %} 
+{% set active_page = "register" %}
+{% block title %}Register Page{% endblock %} 
+{% from "_formhelpers.html" import render_field %}
+{% block content %}
+<div class="container w-50 mt-4">
+    <h4>Create username and password to register a new account</h4>
+    <br/>
+    <form method="post">
+      <dl>
+        {{ render_field(form.username, class="form-control") }}
+        {{ render_field(form.password, class="form-control") }}
+      </dl>
+      <button class="btn btn-success" type=submit>Register</button>
+    </form>
+  </div>
+{% endblock %}
