@@ -1,4 +1,9 @@
-{% extends "layout-loggedin.html" %}
+
+{% if logged_out %}
+  {% extends "layout.html" %}
+{% else %}
+  {% extends "layout-loggedin.html" %}
+{% endif %}
 
 {% set active_page = "home" %}
 {% block title %}RecipeFlask{% endblock %} 

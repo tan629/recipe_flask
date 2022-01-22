@@ -1,9 +1,22 @@
+from shutil import unregister_archive_format
 from flask import Flask, render_template,request,redirect, url_for, make_response
 import sqlite3
 from sqlite3 import Error
-from wtforms import Form, StringField, validators
+from wtforms import Form, StringField, validators, PasswordField
+from bcrypt import hashpw, checkpw, gensalt
 
+#Get user information from the DB
+def get_user_record(username):
     
+    validate_user_sql = '''SELECT * FROM users WHERE username = ?'''
+            
+    form_data = (username,)
+                
+    user_rec = execute_read_query(get_db_connection(), validate_user_sql, form_data)
+    
+    return user_rec
+
+#Create DB connection
 def get_db_connection():
     return create_connection("recipes.db")
     
@@ -74,7 +87,7 @@ def home():
    
     if cookie in (None,''):
         msg = 'Sorry you are not logged in to store recipes. If you are a first time user, please register first.'
-        return render_template('home.html',msg=msg)
+        return render_template('home.html',msg=msg,logged_out=True)
      
     query = "SELECT * FROM recipes"
     recipes = execute_read_query(get_db_connection(),query)
@@ -86,6 +99,7 @@ def home():
 def about():
     return render_template("about.html") 
 
+#Create recipe route
 @app.route('/recipe/', methods=['POST','GET'])
 def create_recipe():
     
@@ -110,6 +124,7 @@ def create_recipe():
         
     return render_template('create-recipe.html',form=form)
 
+#Delete recipe
 @app.route('/recipe/delete/<id>',methods=['POST'])
 def delete_recipe(id):
     
@@ -120,6 +135,7 @@ def delete_recipe(id):
     
     return redirect(url_for('home')) 
 
+#Edit recipe
 @app.route('/recipe/<id>', methods=['POST','GET'])
 def edit_recipe(id):
     
@@ -149,6 +165,7 @@ def edit_recipe(id):
     
     return render_template('edit-recipe.html',form=form,id=id)
 
+#Login route
 @app.route('/login/', methods=['POST','GET'])
 def login():
     
@@ -160,22 +177,23 @@ def login():
             username = form.username.data #access the form data
             password = form.password.data
             
-            validate_user_sql = '''SELECT * FROM users WHERE username = ? AND password = ?'''
-            
-            form_data = (username,password)
-            
-            user_rec = execute_read_query(get_db_connection(), validate_user_sql, form_data)
+            user_rec = get_user_record(username)
             
             if user_rec:
-                resp = make_response(redirect(url_for('home')))
-                resp.set_cookie('userid', str(user_rec[0][0]))
-                return resp
-            else:       
-                msg = 'Invalid username and/or password!'         
-                return render_template('login.html',msg=msg,form=form)
+                
+                is_pw_valid = checkpw(password.encode('utf-8'), user_rec[0][2])
+
+                if is_pw_valid:
+                    resp = make_response(redirect(url_for('home')))
+                    resp.set_cookie('userid', str(user_rec[0][0]))
+                    return resp
+   
+            msg = 'Invalid username and/or password!'         
+            return render_template('login.html',msg=msg,form=form)
         
     return render_template('login.html',form=form)
 
+#User Registration
 @app.route('/register/', methods=['POST','GET'])
 def register():
     
@@ -185,11 +203,20 @@ def register():
         
         if form.validate():
             username = form.username.data #access the form data
+            
+            user_rec = get_user_record(username)
+            
+            if user_rec:
+                msg = 'Username already taken. Please choose another username'
+                return render_template('register.html',form=form,msg=msg)
+            
             password = form.password.data
+            
+            hashed_pw = hashpw(password.encode('utf-8'), gensalt())
             
             insert_user = '''INSERT INTO users (username, password) VALUES (?,?)'''
            
-            execute_query(get_db_connection(),insert_user,(username,password))
+            execute_query(get_db_connection(),insert_user,(username,hashed_pw))
             
             msg = 'Successfully registered! Please log in.'
             form.username.data = None
@@ -198,12 +225,14 @@ def register():
         
     return render_template('register.html',form=form)
 
+#Logout route
 @app.route('/logout/', methods=['GET'])
 def logout():
     resp = make_response(redirect(url_for('about')))
     resp.set_cookie('userid', '')
     return resp
-        
+
+#Create forms/fields     
 class CreateRecipeForm(Form):
     title = StringField('Recipe Title', [validators.Length(min=4, max=50)])
     image = StringField('Image Address', [validators.Length(min=10)])
@@ -211,11 +240,11 @@ class CreateRecipeForm(Form):
     
 class CreateLoginForm(Form):
     username = StringField('Username', [validators.Length(min=4, max=50)])
-    password = StringField('Password', [validators.Length(min=6)])
+    password = PasswordField('Password', [validators.Length(min=6)])
     
 class CreateRegisterForm(Form):
     username = StringField('Username', [validators.Length(min=4, max=50)])
-    password = StringField('Password', [validators.Length(min=6)])
+    password = PasswordField('Password', [validators.Length(min=6)])
       
 if __name__ == '__main__':
   execute_query(get_db_connection(),create_recipe_table)

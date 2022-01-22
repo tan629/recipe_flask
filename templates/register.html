@@ -12,6 +12,9 @@
         {{ render_field(form.password, class="form-control") }}
       </dl>
       <button class="btn btn-success" type=submit>Register</button>
+      {% if msg %}
+          <h3 style="color:red">{{msg}}</h3> 
+      {%endif%}
     </form>
   </div>
 {% endblock %}
